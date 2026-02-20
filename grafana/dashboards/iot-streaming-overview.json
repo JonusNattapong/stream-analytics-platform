@@ -1,0 +1,95 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+          "editorType": "sql",
+          "format": 1,
+          "rawSql": "SELECT window_start AS time, argMax(total_events, updated_at) AS total_events FROM stream_analytics.iot_minute_agg WHERE window_start >= now() - INTERVAL 2 HOUR GROUP BY window_start ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Events per Minute",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+          "editorType": "sql",
+          "format": 1,
+          "rawSql": "SELECT window_start AS time, argMax(avg_metric, updated_at) AS avg_metric FROM stream_analytics.iot_minute_agg WHERE window_start >= now() - INTERVAL 2 HOUR GROUP BY window_start ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Average Metric Value",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+          "editorType": "sql",
+          "format": 1,
+          "rawSql": "SELECT window_start AS time, argMax(unique_users, updated_at) AS unique_users FROM stream_analytics.iot_minute_agg WHERE window_start >= now() - INTERVAL 2 HOUR GROUP BY window_start ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Unique Users per Minute",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "datasource": {"type": "grafana-clickhouse-datasource", "uid": "clickhouse-main"},
+          "editorType": "sql",
+          "format": 1,
+          "rawSql": "SELECT window_start AS time, if(argMax(total_events, updated_at)=0, 0, argMax(anomaly_events, updated_at) / argMax(total_events, updated_at)) AS anomaly_rate FROM stream_analytics.iot_minute_agg WHERE window_start >= now() - INTERVAL 2 HOUR GROUP BY window_start ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Anomaly Rate",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["iot", "streaming", "redpanda"],
+  "templating": {"list": []},
+  "time": {"from": "now-2h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "IoT Streaming Overview",
+  "uid": "iot-stream-overview",
+  "version": 1,
+  "weekStart": ""
+}

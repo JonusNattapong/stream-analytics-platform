@@ -1,0 +1,191 @@
+version: "3.9"
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.3.5
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - "1G"
+      - --reserve-memory
+      - "0M"
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+      - --pandaproxy-addr
+      - 0.0.0.0:8082
+      - --advertise-pandaproxy-addr
+      - redpanda:8082
+    ports:
+      - "9092:9092"
+      - "8082:8082"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "info", "-X", "brokers=redpanda:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  topic-init:
+    image: redpandadata/redpanda:v24.3.5
+    container_name: redpanda-topic-init
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        set -e
+        rpk topic create iot.telemetry.raw.v1 \
+          -X brokers=redpanda:9092 \
+          --partitions 24 \
+          --replicas 1 \
+          --topic-config retention.ms=604800000 \
+          --topic-config cleanup.policy=delete || true
+        rpk topic create iot.telemetry.minute-agg.v1 \
+          -X brokers=redpanda:9092 \
+          --partitions 6 \
+          --replicas 1 \
+          --topic-config retention.ms=2592000000 \
+          --topic-config cleanup.policy=delete || true
+        rpk topic create iot.telemetry.dlq.v1 \
+          -X brokers=redpanda:9092 \
+          --partitions 6 \
+          --replicas 1 \
+          --topic-config retention.ms=1209600000 \
+          --topic-config cleanup.policy=delete || true
+        rpk topic create amr.telemetry.raw.v1 \
+          -X brokers=redpanda:9092 \
+          --partitions 12 \
+          --replicas 1 \
+          --topic-config retention.ms=604800000 \
+          --topic-config cleanup.policy=delete || true
+
+  console:
+    image: redpandadata/console:v2.8.2
+    container_name: redpanda-console
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      KAFKA_SCHEMAREGISTRY_ENABLED: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.11
+    container_name: clickhouse
+    init: true
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DB: stream_analytics
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./clickhouse/init:/docker-entrypoint-initdb.d
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  aggregator:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: minute-aggregator
+    restart: unless-stopped
+    command: ["python", "aggregator.py"]
+    environment:
+      BROKERS: redpanda:9092
+      TOPIC: iot.telemetry.raw.v1
+      GROUP_ID: iot-minute-aggregation-v1
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_DB: stream_analytics
+      CLICKHOUSE_PASSWORD: clickhouse
+      FLUSH_INTERVAL_SECS: "5"
+      ALLOWED_LATENESS_SECS: "15"
+    depends_on:
+      topic-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+
+  producer:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: iot-producer
+    restart: unless-stopped
+    command:
+      [
+        "python",
+        "producer.py",
+        "--brokers",
+        "redpanda:9092",
+        "--topic",
+        "iot.telemetry.raw.v1",
+        "--rate",
+        "10000",
+        "--devices",
+        "2000",
+      ]
+    depends_on:
+      topic-init:
+        condition: service_completed_successfully
+
+  amr-producer:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: amr-sensor-producer
+    restart: unless-stopped
+    command:
+      [
+        "python",
+        "amr_sensor_producer.py",
+        "--brokers",
+        "redpanda:9092",
+        "--topic",
+        "amr.telemetry.raw.v1",
+        "--rate",
+        "1",
+      ]
+    depends_on:
+      topic-init:
+        condition: service_completed_successfully
+    environment:
+      - API_URL=http://192.168.102.201:4040/api/v1/sensors/amr
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    ports:
+      - "6363:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - clickhouse
