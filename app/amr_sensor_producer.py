@@ -66,65 +66,98 @@ def build_amr_event(sensor_data: dict, simulate_variation: bool = True) -> dict:
     """Build AMR sensor event with optional simulated variations"""
     import random
     
+    # Default values for fields that may be missing from API response
+    defaults = {
+        "inletPressure": 6.32,
+        "outletPressure": 4.18,
+        "differentialPressure": 2.14,
+        "pressureUnit": "bar",
+        "temperature": 45.3,
+        "temperatureUnit": "°C",
+        "viscosity": 32.5,
+        "viscosityUnit": "cSt",
+        "density": 865.2,
+        "densityUnit": "kg/m³",
+        "apiGravity": 32.1,
+        "waterContent": 0.52,
+        "waterContentUnit": "%",
+        "sulfurContent": 0.085,
+        "sulfurContentUnit": "%",
+        "correctionFactor": 0.9982,
+        "pumpSpeed": 1450,
+        "pumpSpeedUnit": "RPM",
+        "valveStatus": "open",
+        "valveOpenPercent": 87.5,
+        "leakDetected": False,
+        "leakSensitivity": "high",
+        "batteryLevel": 78.4,
+        "batteryUnit": "%",
+        "signalStrength": -62,
+        "signalUnit": "dBm",
+    }
+    
+    # Merge sensor_data with defaults for missing fields
+    data = {**defaults, **sensor_data}
+    
     event = {
         "event_id": str(uuid.uuid4()),
         "event_time": datetime.now(timezone.utc).isoformat(),
-        "device_id": sensor_data["sensorId"],
-        "device_type": sensor_data["type"],
-        "meter_serial": sensor_data["meterSerial"],
-        "pipeline_id": sensor_data["pipelineId"],
-        "location": sensor_data["location"],
+        "device_id": data["sensorId"],
+        "device_type": data["type"],
+        "meter_serial": data["meterSerial"],
+        "pipeline_id": data["pipelineId"],
+        "location": data["location"],
     }
     
     if simulate_variation:
         # Add small variations to simulate real sensor readings
-        event["flow_rate"] = round(sensor_data["flowRate"] + random.uniform(-2.0, 2.0), 2)
-        event["flow_rate_unit"] = sensor_data["flowRateUnit"]
+        event["flow_rate"] = round(data["flowRate"] + random.uniform(-2.0, 2.0), 2)
+        event["flow_rate_unit"] = data.get("flowRateUnit", "L/min")
         
-        event["inlet_pressure"] = round(sensor_data["inletPressure"] + random.uniform(-0.1, 0.1), 2)
-        event["outlet_pressure"] = round(sensor_data["outletPressure"] + random.uniform(-0.1, 0.1), 2)
-        event["differential_pressure"] = round(sensor_data["differentialPressure"] + random.uniform(-0.05, 0.05), 2)
-        event["pressure_unit"] = sensor_data["pressureUnit"]
+        event["inlet_pressure"] = round(data["inletPressure"] + random.uniform(-0.1, 0.1), 2)
+        event["outlet_pressure"] = round(data["outletPressure"] + random.uniform(-0.1, 0.1), 2)
+        event["differential_pressure"] = round(data["differentialPressure"] + random.uniform(-0.05, 0.05), 2)
+        event["pressure_unit"] = data.get("pressureUnit", "bar")
         
-        event["temperature"] = round(sensor_data["temperature"] + random.uniform(-1.0, 1.0), 2)
-        event["temperature_unit"] = sensor_data["temperatureUnit"]
+        event["temperature"] = round(data["temperature"] + random.uniform(-1.0, 1.0), 2)
+        event["temperature_unit"] = data.get("temperatureUnit", "°C")
         
-        event["viscosity"] = round(sensor_data["viscosity"] + random.uniform(-0.5, 0.5), 2)
-        event["viscosity_unit"] = sensor_data["viscosityUnit"]
+        event["viscosity"] = round(data["viscosity"] + random.uniform(-0.5, 0.5), 2)
+        event["viscosity_unit"] = data.get("viscosityUnit", "cSt")
         
-        event["density"] = round(sensor_data["density"] + random.uniform(-1.0, 1.0), 2)
-        event["density_unit"] = sensor_data["densityUnit"]
+        event["density"] = round(data["density"] + random.uniform(-1.0, 1.0), 2)
+        event["density_unit"] = data.get("densityUnit", "kg/m³")
         
-        event["cumulative_flow"] = round(sensor_data["cumulativeFlow"] + random.uniform(0, 0.5), 2)
-        event["cumulative_flow_unit"] = sensor_data["cumulativeFlowUnit"]
+        event["cumulative_flow"] = round(data["cumulativeFlow"] + random.uniform(0, 0.5), 2)
+        event["cumulative_flow_unit"] = data.get("cumulativeFlowUnit", "m³")
         
-        event["gross_volume"] = round(sensor_data["grossVolume"] + random.uniform(-0.5, 0.5), 2)
-        event["net_volume"] = round(sensor_data["netVolume"] + random.uniform(-0.5, 0.5), 2)
-        event["volume_unit"] = sensor_data["volumeUnit"]
+        event["gross_volume"] = round(data.get("grossVolume", 27450.5) + random.uniform(-0.5, 0.5), 2)
+        event["net_volume"] = round(data.get("netVolume", 27100.8) + random.uniform(-0.5, 0.5), 2)
+        event["volume_unit"] = data.get("volumeUnit", "L")
         
-        event["water_content"] = round(sensor_data["waterContent"] + random.uniform(-0.01, 0.01), 3)
-        event["water_content_unit"] = sensor_data["waterContentUnit"]
+        event["water_content"] = round(data["waterContent"] + random.uniform(-0.01, 0.01), 3)
+        event["water_content_unit"] = data.get("waterContentUnit", "%")
         
-        event["sulfur_content"] = round(sensor_data["sulfurContent"] + random.uniform(-0.001, 0.001), 4)
-        event["sulfur_content_unit"] = sensor_data["sulfurContentUnit"]
+        event["sulfur_content"] = round(data["sulfurContent"] + random.uniform(-0.001, 0.001), 4)
+        event["sulfur_content_unit"] = data.get("sulfurContentUnit", "%")
         
-        event["correction_factor"] = round(sensor_data["correctionFactor"] + random.uniform(-0.0001, 0.0001), 4)
+        event["correction_factor"] = round(data["correctionFactor"] + random.uniform(-0.0001, 0.0001), 4)
         
-        event["pump_speed"] = int(sensor_data["pumpSpeed"] + random.randint(-5, 5))
-        event["pump_speed_unit"] = sensor_data["pumpSpeedUnit"]
+        event["pump_speed"] = int(data["pumpSpeed"] + random.randint(-5, 5))
+        event["pump_speed_unit"] = data.get("pumpSpeedUnit", "RPM")
         
-        event["valve_status"] = sensor_data["valveStatus"]
-        event["valve_open_percent"] = round(sensor_data["valveOpenPercent"] + random.uniform(-1.0, 1.0), 1)
+        event["valve_status"] = data["valveStatus"]
+        event["valve_open_percent"] = round(data["valveOpenPercent"] + random.uniform(-1.0, 1.0), 1)
         
         # Randomly simulate leak detection occasionally
         event["leak_detected"] = random.random() < 0.02  # 2% chance
-        event["leak_sensitivity"] = sensor_data["leakSensitivity"]
+        event["leak_sensitivity"] = data["leakSensitivity"]
         
-        event["battery_level"] = round(sensor_data["batteryLevel"] - random.uniform(0, 0.01), 2)
-        event["battery_unit"] = sensor_data["batteryUnit"]
+        event["battery_level"] = round(data["batteryLevel"] - random.uniform(0, 0.01), 2)
+        event["battery_unit"] = data.get("batteryUnit", "%")
         
-        event["signal_strength"] = int(sensor_data["signalStrength"] + random.randint(-3, 3))
-        event["signal_unit"] = sensor_data["signalUnit"]
+        event["signal_strength"] = int(data["signalStrength"] + random.randint(-3, 3))
+        event["signal_unit"] = data.get("signalUnit", "dBm")
         
         # Determine status based on various factors
         if event["leak_detected"] or event["battery_level"] < 20:
@@ -136,39 +169,39 @@ def build_amr_event(sensor_data: dict, simulate_variation: bool = True) -> dict:
         
     else:
         # Use exact values from API
-        event["flow_rate"] = sensor_data["flowRate"]
-        event["flow_rate_unit"] = sensor_data["flowRateUnit"]
-        event["inlet_pressure"] = sensor_data["inletPressure"]
-        event["outlet_pressure"] = sensor_data["outletPressure"]
-        event["differential_pressure"] = sensor_data["differentialPressure"]
-        event["pressure_unit"] = sensor_data["pressureUnit"]
-        event["temperature"] = sensor_data["temperature"]
-        event["temperature_unit"] = sensor_data["temperatureUnit"]
-        event["viscosity"] = sensor_data["viscosity"]
-        event["viscosity_unit"] = sensor_data["viscosityUnit"]
-        event["density"] = sensor_data["density"]
-        event["density_unit"] = sensor_data["densityUnit"]
-        event["cumulative_flow"] = sensor_data["cumulativeFlow"]
-        event["cumulative_flow_unit"] = sensor_data["cumulativeFlowUnit"]
-        event["gross_volume"] = sensor_data["grossVolume"]
-        event["net_volume"] = sensor_data["netVolume"]
-        event["volume_unit"] = sensor_data["volumeUnit"]
-        event["water_content"] = sensor_data["waterContent"]
-        event["water_content_unit"] = sensor_data["waterContentUnit"]
-        event["sulfur_content"] = sensor_data["sulfurContent"]
-        event["sulfur_content_unit"] = sensor_data["sulfurContentUnit"]
-        event["correction_factor"] = sensor_data["correctionFactor"]
-        event["pump_speed"] = sensor_data["pumpSpeed"]
-        event["pump_speed_unit"] = sensor_data["pumpSpeedUnit"]
-        event["valve_status"] = sensor_data["valveStatus"]
-        event["valve_open_percent"] = sensor_data["valveOpenPercent"]
-        event["leak_detected"] = sensor_data["leakDetected"]
-        event["leak_sensitivity"] = sensor_data["leakSensitivity"]
-        event["battery_level"] = sensor_data["batteryLevel"]
-        event["battery_unit"] = sensor_data["batteryUnit"]
-        event["signal_strength"] = sensor_data["signalStrength"]
-        event["signal_unit"] = sensor_data["signalUnit"]
-        status = sensor_data["status"]
+        event["flow_rate"] = data["flowRate"]
+        event["flow_rate_unit"] = data.get("flowRateUnit", "L/min")
+        event["inlet_pressure"] = data["inletPressure"]
+        event["outlet_pressure"] = data["outletPressure"]
+        event["differential_pressure"] = data["differentialPressure"]
+        event["pressure_unit"] = data.get("pressureUnit", "bar")
+        event["temperature"] = data["temperature"]
+        event["temperature_unit"] = data.get("temperatureUnit", "°C")
+        event["viscosity"] = data["viscosity"]
+        event["viscosity_unit"] = data.get("viscosityUnit", "cSt")
+        event["density"] = data["density"]
+        event["density_unit"] = data.get("densityUnit", "kg/m³")
+        event["cumulative_flow"] = data["cumulativeFlow"]
+        event["cumulative_flow_unit"] = data.get("cumulativeFlowUnit", "m³")
+        event["gross_volume"] = data.get("grossVolume", 27450.5)
+        event["net_volume"] = data.get("netVolume", 27100.8)
+        event["volume_unit"] = data.get("volumeUnit", "L")
+        event["water_content"] = data["waterContent"]
+        event["water_content_unit"] = data.get("waterContentUnit", "%")
+        event["sulfur_content"] = data["sulfurContent"]
+        event["sulfur_content_unit"] = data.get("sulfurContentUnit", "%")
+        event["correction_factor"] = data["correctionFactor"]
+        event["pump_speed"] = data["pumpSpeed"]
+        event["pump_speed_unit"] = data.get("pumpSpeedUnit", "RPM")
+        event["valve_status"] = data["valveStatus"]
+        event["valve_open_percent"] = data["valveOpenPercent"]
+        event["leak_detected"] = data["leakDetected"]
+        event["leak_sensitivity"] = data["leakSensitivity"]
+        event["battery_level"] = data["batteryLevel"]
+        event["battery_unit"] = data.get("batteryUnit", "%")
+        event["signal_strength"] = data["signalStrength"]
+        event["signal_unit"] = data.get("signalUnit", "dBm")
+        status = sensor_data.get("status", "normal")
     
     event["status"] = status
     
