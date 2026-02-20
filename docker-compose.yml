@@ -168,12 +168,13 @@ services:
         "amr.telemetry.raw.v1",
         "--rate",
         "1",
+        "--use-api",
+        "--api-url",
+        "http://192.168.102.201:4040/api/v1/sensors/amr",
       ]
     depends_on:
       topic-init:
         condition: service_completed_successfully
-    environment:
-      - API_URL=http://192.168.102.201:4040/api/v1/sensors/amr
 
   grafana:
     image: grafana/grafana:11.4.0
